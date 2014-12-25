@@ -1,7 +1,7 @@
 Cloth
 ======
 
-Cloth simulator written in C++.
+2D cloth simulator written in C++.
 Toy project, not meant to be used for anything.
 
 Modify settings in `config.hpp`.
