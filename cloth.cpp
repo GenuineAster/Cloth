@@ -1,7 +1,8 @@
 #include "config.hpp"
-#include <iostream>
-#include <algorithm>
-#include <SFML/Graphics.hpp>
+#include <vector>
+#include <SFML/Window/Event.hpp>
+#include <SFML/Graphics/VertexArray.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
 
 struct Vector {
 	PrecisionType x,y;
