@@ -12,8 +12,5 @@ endif
 cloth: cloth.o
 	$(CXX) $< $(LDFLAGS) -o $@
 
-cloth_multithreaded: cloth_multithreaded.o
-	$(LD) $< $(LDFLAGS) -o $@
-
 clean:
 	rm *.o
