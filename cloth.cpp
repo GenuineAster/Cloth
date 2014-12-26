@@ -187,5 +187,7 @@ int main() {
 		sf::sleep(sf::milliseconds(10));
 	}
 	delete[] grid;
+	for(auto &c : constraints)
+		delete c;
 	return 0;
 }
