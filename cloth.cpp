@@ -172,6 +172,13 @@ int main() {
 					lines[i*2].color=lines[i*2+1].color=line_color;
 				}
 			}
+			if(ms_grb_whn_stpd && lms) {
+				sf::Vector2i mouse = sf::Mouse::getPosition(window);
+				for(auto &n : mouse_grab) {
+					n->p.x = mouse.x;
+					n->p.y = mouse.y;
+				}
+			}
 		}
 		window.draw(lines);
 		window.draw(points);
