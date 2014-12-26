@@ -1,5 +1,6 @@
 #include "config.hpp"
 #include <vector>
+#include <SFML/System/Sleep.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Graphics/VertexArray.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
@@ -27,8 +28,9 @@ struct Node {
 };
 
 int main() {
-	Node *grid = new Node[grd_sz_x*grd_sz_y];
+	Node *grid = new Node[grd_sz];
 	std::vector<Constraint*> constraints;
+	constraints.reserve(cnstrnts_sz);
 	for(int x{0};x<grd_sz_x;++x) {
 		for(int y{0};y<grd_sz_y;++y) {
 			if(x<(grd_sz_x-1)){
@@ -66,9 +68,11 @@ int main() {
 	lines.resize(constraints.size()*2);
 	sf::VertexArray points;
 	points.setPrimitiveType(sf::Points);
-	points.resize(grd_sz_x*grd_sz_y);
+	points.resize(grd_sz);
 	for(int i{0};i<points.getVertexCount();++i)
 		points[i].color={200,200,200};
+	std::vector<Node*> mouse_grab;
+	bool lms=false;
 	sf::Clock clck;
 	while(window.isOpen()) {
 		PrecisionType dt=clck.restart().asMicroseconds()/1e6f;
@@ -86,13 +90,41 @@ int main() {
 					window.setView(view);
 					break;
 				}
+				case sf::Event::MouseButtonPressed: {
+					if(event.mouseButton.button==sf::Mouse::Button::Left) {
+						lms=true;
+						for(int i{0};i<grd_sz;++i){
+							float dx=event.mouseButton.x-grid[i].p.x;
+							float dy=event.mouseButton.y-grid[i].p.y;
+							if((dx*dx+dy*dy)<=ms_grb_rad)
+								mouse_grab.push_back(&grid[i]);
+						}
+					}
+					break;
+				}
+				case sf::Event::MouseButtonReleased: {
+					if(event.mouseButton.button==sf::Mouse::Button::Left) {
+						lms=false;
+						mouse_grab.clear();
+					}
+					break;
+				}
+				case sf::Event::MouseMoved: {
+					if(lms){
+						for(auto &n : mouse_grab) {
+							n->p.x = event.mouseMove.x;
+							n->p.y = event.mouseMove.y;
+						}
+					}
+					break;
+				}
 				default: break;
 			}
 		}
 		PrecisionType phys_dt=dt/stps_pr_itr;
 		window.clear(sf::Color::White);
 		for(int s{0};s<stps_pr_itr;++s) {
-			for(int i{0};i<grd_sz_x*grd_sz_y;++i) {
+			for(int i{0};i<grd_sz;++i) {
 				grid[i].v.x+=(grvt_x*grid[i].mass)*phys_dt;
 				grid[i].v.y+=(grvt_y*grid[i].mass)*phys_dt;
 				grid[i].p.x+=grid[i].v.x*phys_dt;
@@ -120,7 +152,10 @@ int main() {
 						constraints[i]->active=false;
 						continue;
 					}
-					PrecisionType diff = (constraints[i]->length-dist)/dist;
+					PrecisionType diff;
+					if(dist>0.f)
+						diff = (constraints[i]->length-dist)/dist;
+					else diff=dist;
 					PrecisionType px = dx * diff * 0.5;
 					PrecisionType py = dy * diff * 0.5;
 					constraints[i]->nodes[0]->p.x+=px;
@@ -142,7 +177,7 @@ int main() {
 		window.draw(points);
 		window.setTitle("Cloth. :: " + std::to_string(1.f/dt) + "FPS");
 		window.display();
-		//sf::sleep(sf::milliseconds(10));
+		sf::sleep(sf::milliseconds(10));
 	}
 	delete[] grid;
 	return 0;
