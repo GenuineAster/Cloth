@@ -10,10 +10,10 @@ endif
 	
 
 cloth: cloth.o
-	g++ $< $(LDFLAGS) -o $@
+	$(CXX) $< $(LDFLAGS) -o $@
 
 cloth_multithreaded: cloth_multithreaded.o
-	g++ $< $(LDFLAGS) -o $@
+	$(LD) $< $(LDFLAGS) -o $@
 
 clean:
 	rm *.o
