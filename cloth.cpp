@@ -21,6 +21,7 @@ struct Constraint {
 
 struct Node {
 	bool fixed;
+	bool grabbed;
 	Vector pin;
 	Vector v;
 	Vector p;
@@ -64,6 +65,7 @@ int main() {
 			if(!y)grid[(y*grd_sz_x)+x].pin=grid[(y*grd_sz_x)+x].p;
 			else grid[(y*grd_sz_x)+x].pin={0.f,0.f};
 			grid[(y*grd_sz_x)+x].fixed=!y;
+			grid[(y*grd_sz_x)+x].grabbed=false;
 		}
 	}
 	sf::RenderWindow window{{800,600}, "Cloth."};
@@ -100,8 +102,10 @@ int main() {
 						for(int i{0};i<grd_sz;++i){
 							float dx=event.mouseButton.x-grid[i].p.x;
 							float dy=event.mouseButton.y-grid[i].p.y;
-							if((dx*dx+dy*dy)<=ms_grb_rad)
+							if((dx*dx+dy*dy)<=ms_grb_rad) {
 								mouse_grab.push_back(&grid[i]);
+								grid[i].grabbed=true;
+							}
 						}
 					}
 					break;
@@ -109,6 +113,8 @@ int main() {
 				case sf::Event::MouseButtonReleased: {
 					if(event.mouseButton.button==sf::Mouse::Button::Left) {
 						lms=false;
+						for(auto &n : mouse_grab)
+							n->grabbed=false;
 						mouse_grab.clear();
 					}
 					break;
@@ -129,23 +135,27 @@ int main() {
 		window.clear(sf::Color::White);
 		for(int s{0};s<stps_pr_itr;++s) {
 			for(int i{0};i<grd_sz;++i) {
-				grid[i].g.x+=grvt_x*phys_dt;
-				grid[i].g.y+=grvt_y*phys_dt;
-				grid[i].p.x+=grid[i].v.x*phys_dt;
-				grid[i].p.y+=grid[i].v.y*phys_dt;
-				grid[i].p.x+=grid[i].g.x*phys_dt;
-				grid[i].p.y+=grid[i].g.y*phys_dt;
-				if(grid[i].p.x<=0.f || grid[i].p.x>=window.getSize().x) {
-					grid[i].v.x=-grid[i].v.x/2.f;
-					grid[i].p.x=(grid[i].p.x<=0.f)?0.f:window.getSize().x;
-				}
-				if(grid[i].p.y<=0.f || grid[i].p.y>=window.getSize().y){
-					grid[i].v.y=-grid[i].v.y/2.f;
-					grid[i].p.y=(grid[i].p.y<=0.f)?0.f:window.getSize().y;
-				}
-				grid[i].g.x-=grid[i].g.x*0.9*phys_dt;
-				grid[i].g.y-=grid[i].g.y*0.9*phys_dt;
 				if(grid[i].fixed) grid[i].p=grid[i].pin;
+				if(!grid[i].grabbed || !grid[i].fixed) {
+					grid[i].g.x+=grvt_x*phys_dt;
+					grid[i].g.y+=grvt_y*phys_dt;
+					grid[i].p.x+=grid[i].v.x*phys_dt;
+					grid[i].p.y+=grid[i].v.y*phys_dt;
+					grid[i].p.x+=grid[i].g.x*phys_dt;
+					grid[i].p.y+=grid[i].g.y*phys_dt;
+					grid[i].g.x-=grid[i].g.x*phys_dt*grvt_dmp;
+					grid[i].g.y-=grid[i].g.y*phys_dt*grvt_dmp;
+					if(grid[i].p.x<=0.f || grid[i].p.x>=window.getSize().x) {
+						grid[i].v.x=-grid[i].v.x/2.f;
+						grid[i].g.x=-grid[i].g.x/2.f;
+						grid[i].p.x=(grid[i].p.x<=0.f)?0.f:window.getSize().x;
+					}
+					if(grid[i].p.y<=0.f || grid[i].p.y>=window.getSize().y){
+						grid[i].v.y=-grid[i].v.y/2.f;
+						grid[i].g.y=-grid[i].g.y/2.f;
+						grid[i].p.y=(grid[i].p.y<=0.f)?0.f:window.getSize().y;
+					}
+				}
 				if(s==stps_pr_itr-1) {
 					points[i].position.x = grid[i].p.x;
 					points[i].position.y = grid[i].p.y;
