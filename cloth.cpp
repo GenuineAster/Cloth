@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include <iostream>
 #include <vector>
 #include <SFML/System/Sleep.hpp>
 #include <SFML/Window/Event.hpp>
@@ -23,6 +24,7 @@ struct Node {
 	Vector pin;
 	Vector v;
 	Vector p;
+	Vector g;
 	PrecisionType mass;
 	std::vector<Constraint*> constraints;
 };
@@ -40,6 +42,7 @@ int main() {
 				constraints.back()->length=constraint_length;
 				constraints.back()->maxlength=max_constraint_length;
 				constraints.back()->active=true;
+				constraints.back()->resistance=constraint_resistance;
 				grid[(y*grd_sz_x)+x].constraints.push_back(constraints.back());
 				grid[(y*grd_sz_x)+x+1].constraints.push_back(constraints.back());
 			}
@@ -50,6 +53,7 @@ int main() {
 				constraints.back()->length=constraint_length;
 				constraints.back()->maxlength=max_constraint_length;
 				constraints.back()->active=true;
+				constraints.back()->resistance=constraint_resistance;
 				grid[(y*grd_sz_x)+x].constraints.push_back(constraints.back());
 				grid[((y+1)*grd_sz_x)+x].constraints.push_back(constraints.back());
 			}
@@ -121,14 +125,16 @@ int main() {
 				default: break;
 			}
 		}
-		PrecisionType phys_dt=dt/stps_pr_itr;
+		PrecisionType phys_dt=(dt/stps_pr_itr)*sim_spd;
 		window.clear(sf::Color::White);
 		for(int s{0};s<stps_pr_itr;++s) {
 			for(int i{0};i<grd_sz;++i) {
-				grid[i].v.x+=(grvt_x*grid[i].mass)*phys_dt;
-				grid[i].v.y+=(grvt_y*grid[i].mass)*phys_dt;
+				grid[i].g.x+=grvt_x*phys_dt;
+				grid[i].g.y+=grvt_y*phys_dt;
 				grid[i].p.x+=grid[i].v.x*phys_dt;
 				grid[i].p.y+=grid[i].v.y*phys_dt;
+				grid[i].p.x+=grid[i].g.x*phys_dt;
+				grid[i].p.y+=grid[i].g.y*phys_dt;
 				if(grid[i].p.x<=0.f || grid[i].p.x>=window.getSize().x) {
 					grid[i].v.x=-grid[i].v.x/2.f;
 					grid[i].p.x=(grid[i].p.x<=0.f)?0.f:window.getSize().x;
@@ -137,6 +143,8 @@ int main() {
 					grid[i].v.y=-grid[i].v.y/2.f;
 					grid[i].p.y=(grid[i].p.y<=0.f)?0.f:window.getSize().y;
 				}
+				grid[i].g.x-=grid[i].g.x*0.9*phys_dt;
+				grid[i].g.y-=grid[i].g.y*0.9*phys_dt;
 				if(grid[i].fixed) grid[i].p=grid[i].pin;
 				if(s==stps_pr_itr-1) {
 					points[i].position.x = grid[i].p.x;
@@ -154,14 +162,14 @@ int main() {
 					}
 					PrecisionType diff;
 					if(dist>0.f)
-						diff = (constraints[i]->length-dist)/dist;
+						diff = ((constraints[i]->length-dist)/dist);
 					else diff=dist;
 					PrecisionType px = dx * diff * 0.5;
 					PrecisionType py = dy * diff * 0.5;
-					constraints[i]->nodes[0]->p.x+=px;
-					constraints[i]->nodes[0]->p.y+=py;
-					constraints[i]->nodes[1]->p.x-=px;
-					constraints[i]->nodes[1]->p.y-=py;
+					constraints[i]->nodes[0]->p.x+=px*phys_dt*constraint_resistance;
+					constraints[i]->nodes[0]->p.y+=py*phys_dt*constraint_resistance;
+					constraints[i]->nodes[1]->p.x-=px*phys_dt*constraint_resistance;
+					constraints[i]->nodes[1]->p.y-=py*phys_dt*constraint_resistance;
 				}
 				if(s==stps_pr_itr-1) {
 					sf::Color line_color = ((constraints[i]->active)?sf::Color{150,150,150}:sf::Color{0,0,0,0});
@@ -177,6 +185,8 @@ int main() {
 				for(auto &n : mouse_grab) {
 					n->p.x = mouse.x;
 					n->p.y = mouse.y;
+					n->v.x = 0.f;
+					n->v.y = 0.f;
 				}
 			}
 		}
@@ -184,7 +194,7 @@ int main() {
 		window.draw(points);
 		window.setTitle("Cloth. :: " + std::to_string(1.f/dt) + "FPS");
 		window.display();
-		sf::sleep(sf::milliseconds(10));
+		sf::sleep(sf::milliseconds(1));
 	}
 	delete[] grid;
 	for(auto &c : constraints)
