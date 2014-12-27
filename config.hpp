@@ -1,6 +1,6 @@
 #ifndef CONFIG_HPP
 #define CONFIG_HPP
-	using PrecisionType = long double;
+	using PrecisionType = float;
 	int stps_pr_itr{20};
 	PrecisionType nd_mss{0.01f};
 	PrecisionType grvt_x{0.1f}, grvt_y{0.2f};

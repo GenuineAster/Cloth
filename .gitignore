@@ -2,4 +2,5 @@
 *.exe
 cloth
 cloth_multithreaded
+cloth_gui
 

@@ -1,10 +1,16 @@
 #include "config.hpp"
-#include <iostream>
 #include <vector>
 #include <SFML/System/Sleep.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Graphics/VertexArray.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
+const sf::Vector2i win_size=
+#ifdef USE_IMGUI
+	{1200, 600};
+	#include "imgui/imgui_SFML.h"
+#else
+	{800, 600};
+#endif
 
 struct Vector {
 	PrecisionType x,y;
@@ -30,45 +36,16 @@ struct Node {
 	std::vector<Constraint*> constraints;
 };
 
+void generate_cloth(Node *&grid, std::vector<Constraint*> &constraints);
+
 int main() {
-	Node *grid = new Node[grd_sz];
+	Node *grid = nullptr;
 	std::vector<Constraint*> constraints;
-	constraints.reserve(cnstrnts_sz);
-	for(int x{0};x<grd_sz_x;++x) {
-		for(int y{0};y<grd_sz_y;++y) {
-			if(x<(grd_sz_x-1)){
-				constraints.push_back(new Constraint);
-				constraints.back()->nodes[0]=&grid[(y*grd_sz_x)+x];
-				constraints.back()->nodes[1]=&grid[(y*grd_sz_x)+x+1];
-				constraints.back()->length=constraint_length;
-				constraints.back()->maxlength=max_constraint_length;
-				constraints.back()->active=true;
-				constraints.back()->resistance=constraint_resistance;
-				grid[(y*grd_sz_x)+x].constraints.push_back(constraints.back());
-				grid[(y*grd_sz_x)+x+1].constraints.push_back(constraints.back());
-			}
-			if(y<(grd_sz_y-1)){
-				constraints.push_back(new Constraint);
-				constraints.back()->nodes[0]=&grid[(y*grd_sz_x)+x];
-				constraints.back()->nodes[1]=&grid[((y+1)*grd_sz_x)+x];
-				constraints.back()->length=constraint_length;
-				constraints.back()->maxlength=max_constraint_length;
-				constraints.back()->active=true;
-				constraints.back()->resistance=constraint_resistance;
-				grid[(y*grd_sz_x)+x].constraints.push_back(constraints.back());
-				grid[((y+1)*grd_sz_x)+x].constraints.push_back(constraints.back());
-			}
-			grid[(y*grd_sz_x)+x].mass=nd_mss;
-			grid[(y*grd_sz_x)+x].p.x=strt_x+(sz_x/grd_sz_x)*x;
-			grid[(y*grd_sz_x)+x].p.y=strt_y+(sz_y/grd_sz_y)*y;
-			grid[(y*grd_sz_x)+x].v={0.f,0.f};
-			if(!y)grid[(y*grd_sz_x)+x].pin=grid[(y*grd_sz_x)+x].p;
-			else grid[(y*grd_sz_x)+x].pin={0.f,0.f};
-			grid[(y*grd_sz_x)+x].fixed=!y;
-			grid[(y*grd_sz_x)+x].grabbed=false;
-		}
-	}
-	sf::RenderWindow window{{800,600}, "Cloth."};
+	generate_cloth(grid, constraints);
+	sf::RenderWindow window{{1200,600}, "Cloth."};
+#ifdef USE_IMGUI
+	InitImGui();
+#endif
 	sf::VertexArray lines;
 	lines.setPrimitiveType(sf::Lines);
 	lines.resize(constraints.size()*2);
@@ -81,9 +58,15 @@ int main() {
 	bool lms=false;
 	sf::Clock clck;
 	while(window.isOpen()) {
+#ifdef USE_IMGUI
+        mousePressed[0] = mousePressed[1] = false;
+#endif
 		PrecisionType dt=clck.restart().asMicroseconds()/1e6f;
 		sf::Event event;
 		while(window.pollEvent(event)) {
+#ifdef USE_IMGUI
+			imgui_process_event(event);
+#endif
 			switch(event.type) {
 				case sf::Event::Closed: {
 					window.close();
@@ -102,7 +85,7 @@ int main() {
 						for(int i{0};i<grd_sz;++i){
 							float dx=event.mouseButton.x-grid[i].p.x;
 							float dy=event.mouseButton.y-grid[i].p.y;
-							if((dx*dx+dy*dy)<=ms_grb_rad) {
+							if((dx*dx+dy*dy)<=(ms_grb_rad*ms_grb_rad)) {
 								mouse_grab.push_back(&grid[i]);
 								grid[i].grabbed=true;
 							}
@@ -203,11 +186,88 @@ int main() {
 		window.draw(lines);
 		window.draw(points);
 		window.setTitle("Cloth. :: " + std::to_string(1.f/dt) + "FPS");
-		window.display();
+#ifdef USE_IMGUI
+        static bool show_ui = true;
+        static float im_grvt[2] = {grvt_x,grvt_y};
+        UpdateImGui(window);
+        ImGui::Begin("Cloth Simulation Configuration", &show_ui, {500,100});
+        ImGui::InputInt("Steps per Itr", &stps_pr_itr);
+        ImGui::SliderFloat("Simulation Speed", &sim_spd, 1.f, 100.f);
+        ImGui::SliderFloat("Gravity Damp", &grvt_dmp, 0.f, 1.f);
+        ImGui::InputFloat("Node Mass", &nd_mss);
+        ImGui::SliderFloat2("Gravity", im_grvt, 0.f, 10.f);
+        ImGui::InputInt("Nodes X", &grd_sz_x);
+        ImGui::InputInt("Nodes Y", &grd_sz_y);
+        ImGui::SliderFloat("Mouse Grab Radius", &ms_grb_rad, 0.f, 500.f);
+        ImGui::InputFloat("Constraint Length", &constraint_length);
+        ImGui::InputFloat("Constraint Resistance", &constraint_resistance);
+        ImGui::InputFloat("Max Constraint Length", &max_constraint_length);
+        if(ImGui::Button("Rebuild Cloth")) {
+        	generate_cloth(grid, constraints);
+			lines.resize(constraints.size()*2);
+			points.resize(grd_sz);
+			for(int i{0};i<points.getVertexCount();++i)
+				points[i].color={200,200,200};
+			mouse_grab.clear();
+        }
+        ImGui::End();
+        window.pushGLStates();
+        ImGui::Render();
+        window.popGLStates();
+        grvt_x=im_grvt[0];
+		grvt_y=im_grvt[1];
+#endif
+        window.display();
 		sf::sleep(sf::milliseconds(1));
 	}
 	delete[] grid;
 	for(auto &c : constraints)
 		delete c;
 	return 0;
+}
+
+void generate_cloth(Node *&grid, std::vector<Constraint*> &constraints) {
+	grd_sz=grd_sz_x*grd_sz_y;
+	cnstrnts_sz=grd_sz-grd_sz_x-grd_sz_y;
+	if(grid != nullptr)
+		delete[] grid;
+	grid = new Node[grd_sz];
+	for(auto &c : constraints)
+		delete c;
+	constraints.clear();
+	constraints.reserve(cnstrnts_sz);
+	for(int x{0};x<grd_sz_x;++x) {
+		for(int y{0};y<grd_sz_y;++y) {
+			if(x<(grd_sz_x-1)){
+				constraints.push_back(new Constraint);
+				constraints.back()->nodes[0]=&grid[(y*grd_sz_x)+x];
+				constraints.back()->nodes[1]=&grid[(y*grd_sz_x)+x+1];
+				constraints.back()->length=constraint_length;
+				constraints.back()->maxlength=max_constraint_length;
+				constraints.back()->active=true;
+				constraints.back()->resistance=constraint_resistance;
+				grid[(y*grd_sz_x)+x].constraints.push_back(constraints.back());
+				grid[(y*grd_sz_x)+x+1].constraints.push_back(constraints.back());
+			}
+			if(y<(grd_sz_y-1)){
+				constraints.push_back(new Constraint);
+				constraints.back()->nodes[0]=&grid[(y*grd_sz_x)+x];
+				constraints.back()->nodes[1]=&grid[((y+1)*grd_sz_x)+x];
+				constraints.back()->length=constraint_length;
+				constraints.back()->maxlength=max_constraint_length;
+				constraints.back()->active=true;
+				constraints.back()->resistance=constraint_resistance;
+				grid[(y*grd_sz_x)+x].constraints.push_back(constraints.back());
+				grid[((y+1)*grd_sz_x)+x].constraints.push_back(constraints.back());
+			}
+			grid[(y*grd_sz_x)+x].mass=nd_mss;
+			grid[(y*grd_sz_x)+x].p.x=strt_x+(sz_x/grd_sz_x)*x;
+			grid[(y*grd_sz_x)+x].p.y=strt_y+(sz_y/grd_sz_y)*y;
+			grid[(y*grd_sz_x)+x].v={0.f,0.f};
+			if(!y)grid[(y*grd_sz_x)+x].pin=grid[(y*grd_sz_x)+x].p;
+			else grid[(y*grd_sz_x)+x].pin={0.f,0.f};
+			grid[(y*grd_sz_x)+x].fixed=!y;
+			grid[(y*grd_sz_x)+x].grabbed=false;
+		}
+	}
 }
