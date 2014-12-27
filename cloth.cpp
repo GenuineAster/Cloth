@@ -59,7 +59,7 @@ int main() {
 	sf::Clock clck;
 	while(window.isOpen()) {
 #ifdef USE_IMGUI
-        mousePressed[0] = mousePressed[1] = false;
+		mousePressed[0] = mousePressed[1] = false;
 #endif
 		PrecisionType dt=clck.restart().asMicroseconds()/1e6f;
 		sf::Event event;
@@ -187,37 +187,50 @@ int main() {
 		window.draw(points);
 		window.setTitle("Cloth. :: " + std::to_string(1.f/dt) + "FPS");
 #ifdef USE_IMGUI
-        static bool show_ui = true;
-        static float im_grvt[2] = {grvt_x,grvt_y};
-        UpdateImGui(window);
-        ImGui::Begin("Cloth Simulation Configuration", &show_ui, {500,100});
-        ImGui::InputInt("Steps per Itr", &stps_pr_itr);
-        ImGui::SliderFloat("Simulation Speed", &sim_spd, 1.f, 100.f);
-        ImGui::SliderFloat("Gravity Damp", &grvt_dmp, 0.f, 1.f);
-        ImGui::InputFloat("Node Mass", &nd_mss);
-        ImGui::SliderFloat2("Gravity", im_grvt, 0.f, 10.f);
-        ImGui::InputInt("Nodes X", &grd_sz_x);
-        ImGui::InputInt("Nodes Y", &grd_sz_y);
-        ImGui::SliderFloat("Mouse Grab Radius", &ms_grb_rad, 0.f, 500.f);
-        ImGui::InputFloat("Constraint Length", &constraint_length);
-        ImGui::InputFloat("Constraint Resistance", &constraint_resistance);
-        ImGui::InputFloat("Max Constraint Length", &max_constraint_length);
-        if(ImGui::Button("Rebuild Cloth")) {
-        	generate_cloth(grid, constraints);
+		static bool show_ui = true;
+		static float im_grvt[2] = {grvt_x,grvt_y};
+		UpdateImGui(window);
+		ImGui::Begin("Cloth Simulation Configuration", &show_ui, {500,100});
+		ImGui::PushItemWidth(200.f);
+		ImGui::InputInt("Steps per Itr", &stps_pr_itr);
+		ImGui::SliderFloat("Simulation Speed", &sim_spd, 1.f, 100.f);
+		ImGui::SliderFloat("Gravity Damp", &grvt_dmp, 0.f, 1.f);
+		ImGui::InputFloat("Node Mass", &nd_mss);
+		ImGui::SliderFloat2("Gravity", im_grvt, 0.f, 10.f);
+		ImGui::PushItemWidth(ImGui::GetItemWidth()/2.2f);
+		ImGui::InputInt("##Nodes X", &grd_sz_x);
+		ImGui::SameLine();
+		ImGui::InputInt("Nodes X/Y", &grd_sz_y);
+		ImGui::PopItemWidth();
+		ImGui::SliderFloat("Mouse Grab Radius", &ms_grb_rad, 0.f, 500.f);
+		ImGui::InputFloat("Constraint Length", &constraint_length);
+		ImGui::InputFloat("Constraint Resistance", &constraint_resistance);
+		ImGui::InputFloat("Max Constraint Length", &max_constraint_length);
+		ImGui::PushItemWidth(ImGui::GetItemWidth()/2.3f);
+		ImGui::InputFloat("##Start X", &strt_x);
+		ImGui::SameLine();
+		ImGui::InputFloat("Start X/Y", &strt_y);
+		ImGui::InputFloat("##Size X", &sz_x);
+		ImGui::SameLine();
+		ImGui::InputFloat("Size X/Y", &sz_y);
+		ImGui::PopItemWidth();
+		if(ImGui::Button("Rebuild Cloth")) {
+			generate_cloth(grid, constraints);
 			lines.resize(constraints.size()*2);
 			points.resize(grd_sz);
 			for(int i{0};i<points.getVertexCount();++i)
 				points[i].color={200,200,200};
 			mouse_grab.clear();
-        }
-        ImGui::End();
-        window.pushGLStates();
-        ImGui::Render();
-        window.popGLStates();
-        grvt_x=im_grvt[0];
+		}
+		ImGui::PopItemWidth();
+		ImGui::End();
+		window.pushGLStates();
+		ImGui::Render();
+		window.popGLStates();
+		grvt_x=im_grvt[0];
 		grvt_y=im_grvt[1];
 #endif
-        window.display();
+		window.display();
 		sf::sleep(sf::milliseconds(1));
 	}
 	delete[] grid;
