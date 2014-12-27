@@ -158,33 +158,12 @@ void InitImGui()
     glBindTexture(GL_TEXTURE_2D, fontTex);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-#if 1
-    // Default font (embedded in code)
     const void* png_data;
     unsigned int png_size;
     ImGui::GetDefaultFontData(NULL, NULL, &png_data, &png_size);
     int tex_x, tex_y, tex_comp;
     void* tex_data = stbi_load_from_memory((const unsigned char*)png_data, (int)png_size, &tex_x, &tex_y, &tex_comp, 0);
     IM_ASSERT(tex_data != NULL);
-#else
-    // Custom font from filesystem
-    io.Font = new ImFont();
-    io.Font->LoadFromFile("../../extra_fonts/mplus-2m-medium_18.fnt");
-    IM_ASSERT(io.Font->IsLoaded());
-    int tex_x, tex_y, tex_comp;
-    void* tex_data = stbi_load("../../extra_fonts/mplus-2m-medium_18.png", &tex_x, &tex_y, &tex_comp, 0);
-    IM_ASSERT(tex_data != NULL);
-    
-    // Automatically find white pixel from the texture we just loaded
-    // (io.Font->TexUvForWhite needs to contains UV coordinates pointing to a white pixel in order to render solid objects)
-    for (int tex_data_off = 0; tex_data_off < tex_x*tex_y; tex_data_off++)
-        if (((unsigned int*)tex_data)[tex_data_off] == 0xffffffff)
-        {
-            io.Font->TexUvForWhite = ImVec2((float)(tex_data_off % tex_x)/(tex_x), (float)(tex_data_off / tex_x)/(tex_y));
-            break;
-        }
-#endif
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex_x, tex_y, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex_data);
     stbi_image_free(tex_data);
@@ -194,33 +173,16 @@ void InitImGui()
 void UpdateImGui(sf::Window &window)
 {
     ImGuiIO& io = ImGui::GetIO();
-
-    // Setup resolution (every frame to accommodate for window resizing)
     int w, h;
-    //int display_w, display_h;
     sf::Vector2u size = window.getSize();
     w=size.x; h=size.y;
-    //window.getViewport
-    //glfwGetFramebufferSize(window, &display_w, &display_h);
-    // Display size, in pixels. For clamping windows positions.
     io.DisplaySize = ImVec2((float)w, (float)h);
-    //io.DisplaySize = ImVec2((float)display_w, (float)display_h);
-
-    // Setup time step
     static double time = 0.0f;
     const double current_time = timeElapsed.getElapsedTime().asSeconds();
     io.DeltaTime = (float)(current_time - time);
     time = current_time;
-
-    // Setup inputs
-    // (we already got mouse wheel, keyboard keys & characters from glfw callbacks polled in glfwPollEvents())
     sf::Vector2i mouse = sf::Mouse::getPosition(window);
-    // double mouse_x, mouse_y;
-    // mouse_x *= (float)display_w / w;                                                               // Convert mouse coordinates to pixels
-    // mouse_y *= (float)display_h / h;
     io.MousePos = ImVec2((float)mouse.x, (float)mouse.y);                                          // Mouse position, in pixels (set to -1,-1 if no mouse / on another screen, etc.)
-    // io.MouseDown[0] = mousePressed[0] || glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) != 0;  // If a mouse press event came, always pass it as "mouse held this frame", so we don't miss click-release events that are shorter than 1 frame.
-    // io.MouseDown[1] = mousePressed[1] || glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) != 0;
     io.MouseDown[0] = mousePressed[0] || sf::Mouse::isButtonPressed(sf::Mouse::Left);
     io.MouseDown[1] = mousePressed[1] || sf::Mouse::isButtonPressed(sf::Mouse::Right);
 
