@@ -4,13 +4,13 @@
 #include <SFML/Window/Event.hpp>
 #include <SFML/Graphics/VertexArray.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
-const sf::Vector2i win_size=
+const sf::Vector2u win_size=
 #ifdef USE_IMGUI
 	{1200, 600};
+	#include "imgui/imgui_SFML.h"
 #else
 	{800, 600};
 #endif
-#include "imgui/imgui_SFML.h"
 
 struct Vector {
 	PrecisionType x,y;
@@ -42,8 +42,9 @@ int main() {
 	Node *grid = nullptr;
 	std::vector<Constraint*> constraints;
 	generate_cloth(grid, constraints);
-	sf::RenderWindow window{{1200,600}, "Cloth."};
+	sf::RenderWindow window{{win_size.x, win_size.y}, "Cloth."};
 #ifdef USE_IMGUI
+	iwindow=&window;
 	InitImGui();
 #endif
 	sf::VertexArray lines;
@@ -226,14 +227,11 @@ int main() {
 			ImGui::PopItemWidth();
 		}
 		ImGui::End();
-		// window.pushGLStates();
 		ImGui::Render();
-		// window.popGLStates();
 		grvt_x=im_grvt[0];
 		grvt_y=im_grvt[1];
 #endif
 		window.display();
-		//sf::sleep(sf::milliseconds(1));
 	}
 	delete[] grid;
 	for(auto &c : constraints)
