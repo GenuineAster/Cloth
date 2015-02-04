@@ -16,4 +16,5 @@
 	PrecisionType ms_grb_rad{15.f};
 	bool ms_grb_whn_stpd{true};
 	PrecisionType sim_spd{20.f};
+	PrecisionType fps{60.f};
 #endif

@@ -44,8 +44,6 @@ namespace ImGui
     void    Value(const char* prefix, const MyVec4& v, const char* float_format = NULL);
 }
 */
-#include <vector>
-#define ImVector std::vector
 
 #define IMGUI_OVERRIDE_DRAWVERT_STRUCT_LAYOUT struct ImDrawVert\
 {\

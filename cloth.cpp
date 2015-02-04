@@ -7,6 +7,7 @@
 const sf::Vector2u win_size=
 #ifdef USE_IMGUI
 	{1200, 600};
+	#include "imgui/imgui.h"
 	#include "imgui/imgui_SFML.h"
 #else
 	{800, 600};
@@ -43,9 +44,10 @@ int main() {
 	std::vector<Constraint*> constraints;
 	generate_cloth(grid, constraints);
 	sf::RenderWindow window{{win_size.x, win_size.y}, "Cloth."};
+	window.setFramerateLimit(fps);
 #ifdef USE_IMGUI
-	iwindow=&window;
-	InitImGui();
+	ImGui::SFML::SetWindow(window);
+	ImGui::SFML::InitImGui();
 #endif
 	sf::VertexArray lines;
 	lines.setPrimitiveType(sf::Lines);
@@ -59,14 +61,11 @@ int main() {
 	bool lms=false;
 	sf::Clock clck;
 	while(window.isOpen()) {
-#ifdef USE_IMGUI
-		mousePressed[0] = mousePressed[1] = false;
-#endif
 		PrecisionType dt=clck.restart().asMicroseconds()/1e6f;
 		sf::Event event;
 		while(window.pollEvent(event)) {
 #ifdef USE_IMGUI
-			imgui_process_event(event);
+			ImGui::SFML::ProcessEvent(event);
 #endif
 			switch(event.type) {
 				case sf::Event::Closed: {
@@ -115,12 +114,12 @@ int main() {
 				default: break;
 			}
 		}
-		PrecisionType phys_dt=(dt/stps_pr_itr)*sim_spd;
+		PrecisionType phys_dt=((1.f/fps)/stps_pr_itr)*sim_spd;
 		window.clear(sf::Color::White);
 		for(int s{0};s<stps_pr_itr;++s) {
 			for(int i{0};i<grd_sz;++i) {
 				if(grid[i].fixed) grid[i].p=grid[i].pin;
-				if(!grid[i].grabbed || !grid[i].fixed) {
+				if(!grid[i].fixed) {
 					grid[i].g.x+=grvt_x*phys_dt;
 					grid[i].g.y+=grvt_y*phys_dt;
 					grid[i].p.x+=grid[i].v.x*phys_dt;
@@ -149,21 +148,23 @@ int main() {
 				if(constraints[i]->active) {
 					PrecisionType dx = constraints[i]->nodes[0]->p.x - constraints[i]->nodes[1]->p.x;
 					PrecisionType dy = constraints[i]->nodes[0]->p.y - constraints[i]->nodes[1]->p.y;
-					PrecisionType dist = std::sqrt(dx*dx+dy*dy);
-					if(dist>constraints[i]->maxlength) {
+					PrecisionType dist = (dx*dx+dy*dy);
+					if(dist>(constraints[i]->maxlength)*(constraints[i]->maxlength)) {
+					// PrecisionType dist = std::sqrt(dx*dx+dy*dy);
+					// if(dist>constraints[i]->maxlength) {
 						constraints[i]->active=false;
 						continue;
 					}
 					PrecisionType diff;
 					if(dist>0.f)
-						diff = ((constraints[i]->length-dist)/dist);
+						diff = (((constraints[i]->length)*(constraints[i]->length)-dist)/dist);
 					else diff=dist;
 					PrecisionType px = dx * diff * 0.5;
 					PrecisionType py = dy * diff * 0.5;
-					constraints[i]->nodes[0]->p.x+=px*phys_dt*constraint_resistance;
-					constraints[i]->nodes[0]->p.y+=py*phys_dt*constraint_resistance;
-					constraints[i]->nodes[1]->p.x-=px*phys_dt*constraint_resistance;
-					constraints[i]->nodes[1]->p.y-=py*phys_dt*constraint_resistance;
+					constraints[i]->nodes[0]->p.x+=px*constraint_resistance*phys_dt;
+					constraints[i]->nodes[0]->p.y+=py*constraint_resistance*phys_dt;
+					constraints[i]->nodes[1]->p.x-=px*constraint_resistance*phys_dt;
+					constraints[i]->nodes[1]->p.y-=py*constraint_resistance*phys_dt;
 				}
 				if(s==stps_pr_itr-1) {
 					sf::Color line_color = ((constraints[i]->active)?sf::Color{150,150,150}:sf::Color{0,0,0,0});
@@ -177,10 +178,10 @@ int main() {
 			if(ms_grb_whn_stpd && lms) {
 				sf::Vector2i mouse = sf::Mouse::getPosition(window);
 				for(auto &n : mouse_grab) {
+					n->v.x = mouse.x - n->p.x;
+					n->v.y = mouse.y - n->p.y;
 					n->p.x = mouse.x;
 					n->p.y = mouse.y;
-					n->v.x = 0.f;
-					n->v.y = 0.f;
 				}
 			}
 		}
@@ -190,15 +191,14 @@ int main() {
 #ifdef USE_IMGUI
 		static bool show_ui = true;
 		static float im_grvt[2] = {grvt_x,grvt_y};
-		UpdateImGui(window);
-		if(ImGui::Begin("Cloth Simulation Configuration", &show_ui, {500,100}))
-		{
+		ImGui::SFML::UpdateImGui();
+		if(ImGui::Begin("Cloth Simulation Configuration", &show_ui, {500,100})) {
 			ImGui::PushItemWidth(200.f);
 			ImGui::InputInt("Steps per Itr", &stps_pr_itr);
 			ImGui::SliderFloat("Simulation Speed", &sim_spd, 1.f, 100.f);
 			ImGui::SliderFloat("Gravity Damp", &grvt_dmp, 0.f, 1.f);
 			ImGui::InputFloat("Node Mass", &nd_mss);
-			ImGui::SliderFloat2("Gravity", im_grvt, 0.f, 10.f);
+			ImGui::SliderFloat2("Gravity", im_grvt, 0.f, 100.f);
 			ImGui::PushItemWidth(ImGui::GetItemWidth()/2.2f);
 			ImGui::InputInt("##Nodes X", &grd_sz_x);
 			ImGui::SameLine();
